@@ -10,8 +10,9 @@ import net.buycraft.plugin.execution.strategy.CommandExecutor;
 import net.buycraft.plugin.fabric.util.Multithreading;
 import net.buycraft.plugin.platform.PlatformInformation;
 import net.buycraft.plugin.platform.PlatformType;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
+import net.minecraft.server.level.ServerPlayer;
+
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +37,7 @@ public class FabricBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public void dispatchCommand(String command) {
-        plugin.getServer().getCommandManager().execute(plugin.getServer().getCommandSource(), command);
+        plugin.getServer().getCommands().performPrefixedCommand(plugin.getServer().createCommandSourceStack(), command);
     }
 
     @Override
@@ -57,15 +58,15 @@ public class FabricBuycraftPlatform implements IBuycraftPlatform {
     @Override
     public void executeBlockingLater(Runnable runnable, long time, TimeUnit unit) {
         Multithreading.schedule(() -> {
-            Util.getMainWorkerExecutor().execute(runnable);
+            Util.backgroundExecutor().execute(runnable);
         }, time, unit);
     }
 
-    private Optional<ServerPlayerEntity> getPlayer(QueuedPlayer player) {
-        if (player.getUuid() != null && (plugin.getConfiguration().isBungeeCord() || plugin.getServer().isOnlineMode())) {
-            return Optional.ofNullable(plugin.getServer().getPlayerManager().getPlayer(UuidUtil.mojangUuidToJavaUuid(player.getUuid())));
+    private Optional<ServerPlayer> getPlayer(QueuedPlayer player) {
+        if (player.getUuid() != null && (plugin.getConfiguration().isBungeeCord() || plugin.getServer().usesAuthentication())) {
+            return Optional.ofNullable(plugin.getServer().getPlayerList().getPlayer(UuidUtil.mojangUuidToJavaUuid(player.getUuid())));
         }
-        return Optional.ofNullable(plugin.getServer().getPlayerManager().getPlayer(player.getName()));
+        return Optional.ofNullable(plugin.getServer().getPlayerList().getPlayerByName(player.getName()));
     }
 
     @Override
@@ -75,7 +76,7 @@ public class FabricBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public int getFreeSlots(QueuedPlayer player) {
-        return getPlayer(player).map(value -> Math.max(0, 36 - value.inventory.size())).orElse(-1);
+        return getPlayer(player).map(value -> Math.max(0, 36 - value.getInventory().getContainerSize())).orElse(-1);
     }
 
     @Override
@@ -95,7 +96,7 @@ public class FabricBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public PlatformInformation getPlatformInformation() {
-        return new PlatformInformation(PlatformType.FABRIC, "Fabric" + " " + plugin.getServer().getVersion());
+        return new PlatformInformation(PlatformType.FABRIC, "Fabric" + " " + plugin.getServer().getServerVersion());
     }
 
     @Override

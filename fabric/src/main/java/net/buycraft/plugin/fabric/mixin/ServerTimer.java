@@ -15,7 +15,7 @@ public class ServerTimer implements ServerTimerAccess {
     @Unique
     private long ticksUntilSomething;
 
-    @Inject(method = "tick", at = @At("TAIL"))
+    @Inject(method = "tickServer", at = @At("TAIL"))
     private void onTick(BooleanSupplier shouldKeepTicking, CallbackInfo ci) { // Fix parameters as needed
         if (--this.ticksUntilSomething <= 0L) {
 //            doSomething();

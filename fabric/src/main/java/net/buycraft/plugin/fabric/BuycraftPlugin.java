@@ -29,7 +29,7 @@ import net.buycraft.plugin.shared.tasks.ListingUpdateTask;
 import net.buycraft.plugin.shared.tasks.PlayerJoinCheckTask;
 import net.buycraft.plugin.shared.util.AnalyticsSend;
 import net.fabricmc.api.DedicatedServerModInitializer;
-import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
@@ -100,9 +100,9 @@ public class BuycraftPlugin implements DedicatedServerModInitializer {
             return;
         }
 
-        CommandRegistrationCallback.EVENT.register(new TebexCommand(this)::register);
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> new TebexCommand(this).register(dispatcher));
         buyCommand = new BuyCommand(this);
-        CommandRegistrationCallback.EVENT.register(buyCommand::register);
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> buyCommand.register(dispatcher));
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             this.server = server;
@@ -208,7 +208,7 @@ public class BuycraftPlugin implements DedicatedServerModInitializer {
             if (serverInformation != null) {
                 Multithreading.schedule(() -> {
                     try {
-                        AnalyticsSend.postServerInformation(httpClient, configuration.getServerKey(), platform, server.isOnlineMode());
+                        AnalyticsSend.postServerInformation(httpClient, configuration.getServerKey(), platform, server.usesAuthentication());
                     } catch (IOException e) {
                         getLogger().warn("Can't send analytics", e);
                     }
@@ -309,7 +309,7 @@ public class BuycraftPlugin implements DedicatedServerModInitializer {
 
     public void updateInformation(BuyCraftAPI client) throws IOException {
         serverInformation = client.getServerInformation().execute().body();
-        if (!configuration.isBungeeCord() && server.isOnlineMode() != serverInformation.getAccount().isOnlineMode()) {
+        if (!configuration.isBungeeCord() && server.usesAuthentication() != serverInformation.getAccount().isOnlineMode()) {
             getLogger().warn("Your server and webstore online mode settings are mismatched. Unless you are using" +
                     " a proxy and server combination (such as BungeeCord/Spigot or LilyPad/Connect) that corrects UUIDs, then" +
                     " you may experience issues with packages not applying.");

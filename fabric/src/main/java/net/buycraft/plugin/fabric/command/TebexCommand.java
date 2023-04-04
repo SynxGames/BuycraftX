@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.buycraft.plugin.BuyCraftAPI;
@@ -14,12 +16,12 @@ import net.buycraft.plugin.fabric.BuycraftPlugin;
 import net.buycraft.plugin.fabric.tasks.SendCheckoutLinkTask;
 import net.buycraft.plugin.shared.util.Node;
 import net.buycraft.plugin.shared.util.ReportBuilder;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.LiteralText;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -32,8 +34,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Optional;
 
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static com.mojang.brigadier.builder.RequiredArgumentBuilder.argument;
 
 public class TebexCommand {
     private final BuycraftPlugin plugin;
@@ -42,48 +43,48 @@ public class TebexCommand {
         this.plugin = plugin;
     }
 
-    public void register(CommandDispatcher<ServerCommandSource> dispatcher, boolean dedicated) {
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         registerCommands(dispatcher, "tebex");
         registerCommands(dispatcher, "buycraft");
     }
 
-    private void registerCommands(CommandDispatcher<ServerCommandSource> dispatcher, String command) {
-        dispatcher.register(literal(command).executes(context -> {
+    private void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher, String command) {
+        dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal(command).executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onBaseCommand(context);
                     return 1;
-                }).then(literal("secret").then(argument("token", StringArgumentType.string()).executes(context -> {
-                    if (!checkPermission(context.getSource())) return 0;
+                }).then(LiteralArgumentBuilder.<CommandSourceStack>literal("secret").then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("token", StringArgumentType.string()).executes(context -> {
+                    if (!checkPermission((CommandSourceStack) context.getSource())) return 0;
 
                     onSecretCommand(context);
                     return 1;
-                }))).then(literal("forcecheck").executes(context -> {
+                }))).then(LiteralArgumentBuilder.<CommandSourceStack>literal("forcecheck").executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onForceCheckCommand(context);
                     return 1;
-                })).then(literal("info").executes(context -> {
+                })).then(LiteralArgumentBuilder.<CommandSourceStack>literal("info").executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onInfoCommand(context);
                     return 1;
-                })).then(literal("refresh").executes(context -> {
+                })).then(LiteralArgumentBuilder.<CommandSourceStack>literal("refresh").executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onRefreshCommand(context);
                     return 1;
-                })).then(literal("report").executes(context -> {
+                })).then(LiteralArgumentBuilder.<CommandSourceStack>literal("report").executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onReportCommand(context);
                     return 1;
-                })).then(literal("packages").then(argument("package", IntegerArgumentType.integer()).executes(context -> {
+                })).then(LiteralArgumentBuilder.<CommandSourceStack>literal("packages").then(RequiredArgumentBuilder.<CommandSourceStack, Integer>argument("package", IntegerArgumentType.integer()).executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onPackagesCommand(context);
                     return 1;
-                }))).then(literal("checkout").then(argument("package", IntegerArgumentType.integer()).executes(context -> {
+                }))).then(LiteralArgumentBuilder.<CommandSourceStack>literal("checkout").then(RequiredArgumentBuilder.<CommandSourceStack, Integer>argument("package", IntegerArgumentType.integer()).executes(context -> {
                     if (!checkPermission(context.getSource())) return 0;
 
                     onCheckoutCommand(context);
@@ -92,16 +93,16 @@ public class TebexCommand {
         );
     }
 
-    private boolean checkPermission(ServerCommandSource source) {
+    private boolean checkPermission(CommandSourceStack source) {
         if (!Permissions.check(source, "buycraft.admin", 4)) {
-            source.sendError(new LiteralText("You do not have permission to use this command."));
+            source.sendFailure(Component.literal("You do not have permission to use this command."));
             return false;
         }
 
         return true;
     }
 
-    private void onBaseCommand(CommandContext<ServerCommandSource> context) {
+    private void onBaseCommand(CommandContext<CommandSourceStack> context) {
         String[][] commands = new String[][]{
                 new String[]{"/tebex forcecheck", "Forces a purchase check."},
                 new String[]{"/tebex secret <token>", "Sets the secret key to use for this server."},
@@ -113,16 +114,16 @@ public class TebexCommand {
                 new String[]{"/tebex sendlink", "Sends a package or category link to a player."},
         };
 
-        context.getSource().sendFeedback(new LiteralText("Usage for the Tebex plugin:").formatted(Formatting.BLUE, Formatting.BOLD), false);
+        context.getSource().sendSystemMessage(Component.literal("Usage for the Tebex plugin:").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD));
         for (String[] command : commands) {
-            context.getSource().sendFeedback(new LiteralText(command[0]).formatted(Formatting.GREEN).append(new LiteralText(": " + command[1]).formatted(Formatting.GRAY)), false);
+            context.getSource().sendSystemMessage(Component.literal(command[0]).withStyle(ChatFormatting.GREEN).append(Component.literal(": " + command[1]).withStyle(ChatFormatting.GRAY)));
         }
     }
 
-    private void onSecretCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
-        if (source.getEntity() instanceof ServerPlayerEntity) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("secret_console_only")), false);
+    private void onSecretCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        if (source.getEntity() instanceof ServerPlayer) {
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("secret_console_only")));
             return;
         }
 
@@ -136,7 +137,7 @@ public class TebexCommand {
                 plugin.updateInformation(client);
             } catch (IOException e) {
                 plugin.getLogger().error("Unable to verify secret", e);
-                source.sendFeedback(new LiteralText(plugin.getI18n().get("secret_does_not_work")).formatted(Formatting.RED), false);
+                source.sendSystemMessage(Component.literal(plugin.getI18n().get("secret_does_not_work")).withStyle(ChatFormatting.RED));
                 return;
             }
 
@@ -147,10 +148,10 @@ public class TebexCommand {
             try {
                 plugin.saveConfiguration();
             } catch (IOException e) {
-                source.sendFeedback(new LiteralText(plugin.getI18n().get("secret_cant_be_saved")).formatted(Formatting.RED), false);
+                source.sendSystemMessage(Component.literal(plugin.getI18n().get("secret_cant_be_saved")).withStyle(ChatFormatting.RED));
             }
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("secret_success",
-                    information.getServer().getName(), information.getAccount().getName())).formatted(Formatting.GREEN), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("secret_success",
+                    information.getServer().getName(), information.getAccount().getName())).withStyle(ChatFormatting.GREEN));
 
             boolean repeatChecks = currentKey.equals("INVALID");
 
@@ -158,70 +159,70 @@ public class TebexCommand {
         });
     }
 
-    private void onForceCheckCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private void onForceCheckCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
 
         if (plugin.getApiClient() == null) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("need_secret_key")).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("need_secret_key")).withStyle(ChatFormatting.RED));
             return;
         }
 
         if (plugin.getDuePlayerFetcher().inProgress()) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("already_checking_for_purchases")).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("already_checking_for_purchases")).withStyle(ChatFormatting.RED));
             return;
         }
 
         plugin.getPlatform().executeAsync(() -> plugin.getDuePlayerFetcher().run(false));
-        source.sendFeedback(new LiteralText(plugin.getI18n().get("forcecheck_queued")).formatted(Formatting.GREEN), false);
+        source.sendSystemMessage(Component.literal(plugin.getI18n().get("forcecheck_queued")).withStyle(ChatFormatting.GREEN));
     }
 
-    private void onInfoCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private void onInfoCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
 
         if (plugin.getApiClient() == null) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("generic_api_operation_error")).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("generic_api_operation_error")).withStyle(ChatFormatting.RED));
             return;
         }
 
         if (plugin.getServerInformation() == null) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("information_no_server")).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("information_no_server")).withStyle(ChatFormatting.RED));
             return;
         }
 
         String webstoreURL = plugin.getServerInformation().getAccount().getDomain();
-        LiteralText webstore = (LiteralText) new LiteralText(webstoreURL)
-                .formatted(Formatting.GREEN)
-                .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, webstoreURL)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(webstoreURL))));
+        Component webstore = Component.literal(webstoreURL)
+                .withStyle(ChatFormatting.GREEN)
+                .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, webstoreURL)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(webstoreURL))));
 
-        LiteralText server = (LiteralText) new LiteralText(plugin.getServerInformation().getServer().getName()).formatted(Formatting.GREEN);
+        Component server = Component.literal(plugin.getServerInformation().getServer().getName()).withStyle(ChatFormatting.GREEN);
 
         Arrays.asList(
-                new LiteralText(plugin.getI18n().get("information_title") + " ").formatted(Formatting.GRAY),
-                new LiteralText(plugin.getI18n().get("information_sponge_server") + " ").formatted(Formatting.GRAY).append(server),
-                new LiteralText(plugin.getI18n().get("information_currency", plugin.getServerInformation().getAccount().getCurrency().getIso4217())).formatted(Formatting.GRAY),
-                new LiteralText(plugin.getI18n().get("information_domain", "")).formatted(Formatting.GRAY).append(webstore)
-        ).forEach(item -> source.sendFeedback(item, false));
+                Component.literal(plugin.getI18n().get("information_title") + " ").withStyle(ChatFormatting.GRAY),
+                Component.literal(plugin.getI18n().get("information_sponge_server") + " ").withStyle(ChatFormatting.GRAY).append(server),
+                Component.literal(plugin.getI18n().get("information_currency", plugin.getServerInformation().getAccount().getCurrency().getIso4217())).withStyle(ChatFormatting.GRAY),
+                Component.literal(plugin.getI18n().get("information_domain", "")).withStyle(ChatFormatting.GRAY).append(webstore)
+        ).forEach(source::sendSystemMessage);
     }
 
-    private void onRefreshCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private void onRefreshCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
 
         if (plugin.getApiClient() == null) {
-            source.sendFeedback(new LiteralText(plugin.getI18n().get("need_secret_key")).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal(plugin.getI18n().get("need_secret_key")).withStyle(ChatFormatting.RED));
             return;
         }
 
         plugin.getPlatform().executeAsync(plugin.getListingUpdateTask());
-        source.sendFeedback(new LiteralText(plugin.getI18n().get("refresh_queued")).formatted(Formatting.GREEN), false);
+        source.sendSystemMessage(Component.literal(plugin.getI18n().get("refresh_queued")).withStyle(ChatFormatting.GREEN));
     }
 
-    private void onReportCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
-        source.sendFeedback(new LiteralText(plugin.getI18n().get("report_wait")).formatted(Formatting.RED), false);
+    private void onReportCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSystemMessage(Component.literal(plugin.getI18n().get("report_wait")).withStyle(ChatFormatting.RED));
 
         plugin.getPlatform().executeAsync(() -> {
-            String serverIP = plugin.getServer().getServerIp();
-            int serverPort = plugin.getServer().getServerPort();
+            String serverIP = plugin.getServer().getLocalIp();
+            int serverPort = plugin.getServer().getPort();
 
             ReportBuilder builder = ReportBuilder.builder()
                     .client(plugin.getHttpClient())
@@ -231,7 +232,7 @@ public class TebexCommand {
                     .ip(serverIP)
                     .port(serverPort)
                     .listingUpdateTask(plugin.getListingUpdateTask())
-                    .serverOnlineMode(plugin.getServer().isOnlineMode())
+                    .serverOnlineMode(plugin.getServer().usesAuthentication())
                     .build();
 
             SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");
@@ -241,16 +242,16 @@ public class TebexCommand {
 
             try (BufferedWriter w = Files.newBufferedWriter(p, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
                 w.write(generated);
-                source.sendFeedback(new LiteralText(plugin.getI18n().get("report_saved", p.toAbsolutePath().toString())).formatted(Formatting.YELLOW), false);
+                source.sendSystemMessage(Component.literal(plugin.getI18n().get("report_saved", p.toAbsolutePath().toString())).withStyle(ChatFormatting.YELLOW));
             } catch (IOException e) {
-                source.sendFeedback(new LiteralText(plugin.getI18n().get("report_cant_save")).formatted(Formatting.RED), false);
+                source.sendSystemMessage(Component.literal(plugin.getI18n().get("report_cant_save")).withStyle(ChatFormatting.RED));
                 plugin.getLogger().info(generated);
             }
         });
     }
 
-    private void onPackagesCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private void onPackagesCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         Integer packageId = context.getArgument("package", Integer.class);
 
         Node categories = new Node(plugin.getListingUpdateTask().getListing().getCategories(), ImmutableList.of(), plugin.getI18n().get("categories"), null);
@@ -259,15 +260,15 @@ public class TebexCommand {
         plugin.getBuyCommand().sendPaginatedMessage(categories.getChild(category.get()), source);
     }
 
-    private void onCheckoutCommand(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private void onCheckoutCommand(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         Integer packageId = context.getArgument("package", Integer.class);
 
         try {
             Package packageById = plugin.getListingUpdateTask().getPackageById(packageId);
             plugin.getPlatform().executeAsync(new SendCheckoutLinkTask(plugin, packageById.getId(), source));
         } catch (Exception e) {
-            source.sendFeedback(new LiteralText("Could not find package with id " + packageId).formatted(Formatting.RED), false);
+            source.sendSystemMessage(Component.literal("Could not find package with id " + packageId).withStyle(ChatFormatting.RED));
         }
     }
 }

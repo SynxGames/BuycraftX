@@ -6,12 +6,13 @@ import net.buycraft.plugin.fabric.BuycraftPlugin;
 import net.buycraft.plugin.shared.util.VersionUtil;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.LiteralText;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -51,15 +52,14 @@ public class VersionCheck implements ServerPlayConnectionEvents.Join {
         }
     }
 
-
     @Override
-    public void onPlayReady(ServerPlayNetworkHandler handler, PacketSender sender, MinecraftServer server) {
-        ServerPlayerEntity player = handler.player;
+    public void onPlayReady(ServerGamePacketListenerImpl handler, PacketSender sender, MinecraftServer server) {
+        ServerPlayer player = handler.player;
         if (Permissions.check(player, "buycraft.admin", 4) && !upToDate) {
             plugin.getPlatform().executeAsyncLater(() -> {
-                player.sendSystemMessage(new LiteralText(plugin.getI18n().get("update_available", lastKnownVersion.getVersion()))
-                        .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://server.tebex.io/plugins")))
-                        .formatted(Formatting.YELLOW), player.getUuid());
+                player.sendSystemMessage(Component.literal(plugin.getI18n().get("update_available", lastKnownVersion.getVersion()))
+                        .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://server.tebex.io/plugins")))
+                        .withStyle(ChatFormatting.YELLOW));
             }, 3, TimeUnit.SECONDS);
         }
     }
