@@ -24,6 +24,12 @@ dependencies {
     modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
 
     implementation(project(":plugin-shared"))
+
+    include(implementation("com.squareup.retrofit2:retrofit:2.9.0")!!)
+    include(implementation("com.squareup.retrofit2:converter-gson:2.9.0")!!)
+    include("com.squareup.okhttp3:okhttp:3.14.9")
+    include("com.squareup.okio:okio:1.17.2")
+    //include(project(":plugin-shared"))
 }
 
 java {
@@ -36,15 +42,19 @@ configurations {
 }
 
 tasks {
-
-    build {
+    remapJar {
         dependsOn(shadowJar)
+        inputFile.set(shadowJar.get().archiveFile)
+        archiveBaseName.set("BuycraftX-Fabric-Remapped")
     }
 
     shadowJar {
+        //finalizedBy(remapJar)
+        //dependsOn(remapJar)
 
         dependencies {
             include(project(":plugin-shared"))
+            include(project(":common"))
         }
 
     }
