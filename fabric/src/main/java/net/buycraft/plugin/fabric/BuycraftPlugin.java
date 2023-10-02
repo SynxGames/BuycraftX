@@ -2,6 +2,7 @@ package net.buycraft.plugin.fabric;
 
 import com.google.gson.JsonParseException;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.spi.HttpServerProvider;
 import net.buycraft.plugin.BuyCraftAPI;
 import net.buycraft.plugin.IBuycraftPlatform;
 import net.buycraft.plugin.data.responses.ServerInformation;
@@ -233,6 +234,7 @@ public class BuycraftPlugin implements DedicatedServerModInitializer {
                 LOGGER.error("Can't save purchase signs, continuing anyway");
             }
             completedCommandsTask.flush();
+            Multithreading.EXECUTOR_SERVICE.shutdownNow();
         });
 
     }

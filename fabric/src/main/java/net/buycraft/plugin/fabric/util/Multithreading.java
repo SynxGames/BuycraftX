@@ -1,25 +1,24 @@
 package net.buycraft.plugin.fabric.util;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Multithreading {
-    private static final AtomicInteger counter = new AtomicInteger(0);
 
-    private static final ScheduledExecutorService RUNNABLE_POOL = Executors.newScheduledThreadPool(10, r ->
-            new Thread(r, "Tebex Thread " + counter.incrementAndGet()));
-
-    public static ThreadPoolExecutor POOL = new ThreadPoolExecutor(10, 30,
-            0L, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(),
-            r -> new Thread(r, String.format("Thread %s", counter.incrementAndGet())));
+    public static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(10,
+            new ThreadFactoryBuilder()
+                    .setNameFormat("Tebex-Async-%d")
+                    .setDaemon(true)
+                    .build()
+    );
 
     public static ScheduledFuture<?> schedule(Runnable r, long initialDelay, long delay, TimeUnit unit) {
-        return RUNNABLE_POOL.scheduleAtFixedRate(r, initialDelay, delay, unit);
+        return EXECUTOR_SERVICE.scheduleAtFixedRate(r, initialDelay, delay, unit);
     }
 
     public static ScheduledFuture<?> schedule(Runnable r, long delay, TimeUnit unit) {
-        return RUNNABLE_POOL.schedule(r, delay, unit);
+        return EXECUTOR_SERVICE.schedule(r, delay, unit);
     }
 
     public static Executor delayedExecutor(long delay, TimeUnit unit) {
@@ -27,10 +26,10 @@ public class Multithreading {
     }
 
     public static void runAsync(Runnable runnable) {
-        POOL.execute(runnable);
+        EXECUTOR_SERVICE.execute(runnable);
     }
 
     public static Future<?> submit(Runnable runnable) {
-        return POOL.submit(runnable);
+        return EXECUTOR_SERVICE.submit(runnable);
     }
 }

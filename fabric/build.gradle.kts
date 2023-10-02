@@ -16,19 +16,21 @@ repositories {
 
 
 dependencies {
-    minecraft("com.mojang:minecraft:1.19.2")
+    minecraft("com.mojang:minecraft:1.20.1")
     mappings(loom.officialMojangMappings())
 
-    modImplementation("net.fabricmc:fabric-loader:0.14.9")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:0.59.0+1.19.2")
+    modImplementation("net.fabricmc:fabric-loader:0.14.21")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:0.85.0+1.20.1")
     modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
 
     implementation(project(":plugin-shared"))
 
     include(implementation("com.squareup.retrofit2:retrofit:2.9.0")!!)
     include(implementation("com.squareup.retrofit2:converter-gson:2.9.0")!!)
-    include("com.squareup.okhttp3:okhttp:3.14.9")
-    include("com.squareup.okio:okio:1.17.2")
+    include("com.squareup.okhttp3:okhttp:4.10.0")
+
+    modImplementation("com.squareup.okio:okio-jvm:3.3.0")
+    include("com.squareup.okio:okio-jvm:3.3.0")
     //include(project(":plugin-shared"))
 }
 
